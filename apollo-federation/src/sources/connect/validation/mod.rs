@@ -111,31 +111,28 @@ pub fn validate(source_text: &str, file_name: &str) -> ValidationResult {
         };
     };
 
-    if let Err(err) = ConnectSpec::try_from(&link.url.version) {
-        let available_versions = ConnectSpec::iter().map(ConnectSpec::as_str).collect_vec();
-        let message = if available_versions.len() == 1 {
-            // TODO: No need to branch here once multiple spec versions are available
-            format!("{err}; should be {version}.", version = ConnectSpec::V0_1)
-        } else {
-            // This won't happen today, but it's prepping for 0.2 so we don't forget
-            format!(
+    let spec = match ConnectSpec::try_from(&link.url.version) {
+        Ok(spec) => spec,
+        Err(err) => {
+            let available_versions = ConnectSpec::iter().map(ConnectSpec::as_str).collect_vec();
+            let message = format!(
                 "{err}; should be one of {available_versions}.",
                 available_versions = available_versions.join(", "),
-            )
-        };
-        return ValidationResult {
-            errors: vec![Message {
-                code: Code::UnknownConnectorsVersion,
-                message,
-                locations: link_directive
-                    .line_column_range(&schema.sources)
-                    .into_iter()
-                    .collect(),
-            }],
-            has_connectors: true,
-            schema,
-        };
-    }
+            );
+            return ValidationResult {
+                errors: vec![Message {
+                    code: Code::UnknownConnectorsVersion,
+                    message,
+                    locations: link_directive
+                        .line_column_range(&schema.sources)
+                        .into_iter()
+                        .collect(),
+                }],
+                has_connectors: true,
+                schema,
+            };
+        }
+    };
 
     let federation = Link::for_identity(&schema, &Identity::federation_identity());
     let external_directive_name = federation
@@ -149,6 +146,7 @@ pub fn validate(source_text: &str, file_name: &str) -> ValidationResult {
     let schema_info = SchemaInfo::new(
         &schema,
         source_text,
+        spec,
         &connect_directive_name,
         &source_directive_name,
     );
@@ -643,6 +641,8 @@ pub enum Code {
     NullabilityMismatch,
     /// The version set in the connectors `@link` URL is not recognized.
     UnknownConnectorsVersion,
+    /// Feature unavailable
+    FeatureUnavailable,
 }
 
 impl Code {

@@ -11,8 +11,11 @@ mod strings;
 
 pub(super) use strings::GraphQLString;
 
+use crate::sources::connect::ConnectSpec;
+
 pub(super) struct SchemaInfo<'schema> {
     pub(crate) schema: &'schema Schema,
+    pub(crate) spec: ConnectSpec,
     len: usize,
     lookup: LineColLookup<'schema>,
     pub(crate) connect_directive_name: &'schema Name,
@@ -25,11 +28,13 @@ impl<'schema> SchemaInfo<'schema> {
     pub(crate) fn new(
         schema: &'schema Schema,
         src: &'schema str,
+        spec: ConnectSpec,
         connect_directive_name: &'schema Name,
         source_directive_name: &'schema Name,
     ) -> Self {
         Self {
             schema,
+            spec,
             len: src.len(),
             lookup: LineColLookup::new(src),
             connect_directive_name,
@@ -73,7 +78,7 @@ mod tests {
         let schema = Schema::parse(src, "testSchema").unwrap();
 
         let name = "unused".try_into().unwrap();
-        let schema_info = SchemaInfo::new(&schema, src, &name, &name);
+        let schema_info = SchemaInfo::new(&schema, src, ConnectSpec::V0_1, &name, &name);
 
         assert_eq!(schema_info.line_col(0), Some((1, 1)));
         assert_eq!(schema_info.line_col(4), Some((2, 4)));

@@ -47,12 +47,14 @@ use crate::schema::FederationSchema;
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, EnumIter)]
 pub enum ConnectSpec {
     V0_1,
+    V0_2,
 }
 
 impl ConnectSpec {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::V0_1 => "0.1",
+            Self::V0_2 => "0.2",
         }
     }
 
@@ -150,6 +152,7 @@ impl TryFrom<&Version> for ConnectSpec {
     fn try_from(version: &Version) -> Result<Self, Self::Error> {
         match (version.major, version.minor) {
             (0, 1) => Ok(Self::V0_1),
+            (0, 2) => Ok(Self::V0_2),
             _ => Err(SingleFederationError::UnknownLinkVersion {
                 message: format!("Unknown connect version: {version}"),
             }),
@@ -167,6 +170,7 @@ impl From<ConnectSpec> for Version {
     fn from(spec: ConnectSpec) -> Self {
         match spec {
             ConnectSpec::V0_1 => Version { major: 0, minor: 1 },
+            ConnectSpec::V0_2 => Version { major: 0, minor: 2 },
         }
     }
 }

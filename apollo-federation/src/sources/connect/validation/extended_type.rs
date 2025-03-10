@@ -24,6 +24,7 @@ use super::selection::validate_body_selection;
 use super::selection::validate_selection;
 use super::source_name::SourceName;
 use super::source_name::validate_source_name_arg;
+use crate::sources::connect::ConnectSpec;
 use crate::sources::connect::spec::schema::CONNECT_BODY_ARGUMENT_NAME;
 use crate::sources::connect::spec::schema::CONNECT_SOURCE_ARGUMENT_NAME;
 use crate::sources::connect::spec::schema::HTTP_ARGUMENT_NAME;
@@ -70,6 +71,26 @@ fn validate_object_fields(
 ) -> Vec<Message> {
     if object.is_built_in() {
         return Vec::new();
+    }
+
+    if schema.spec == ConnectSpec::V0_1
+        && object
+            .directives
+            .iter()
+            .any(|d| d.name == *schema.connect_directive_name)
+    {
+        return vec![Message {
+            code: Code::FeatureUnavailable,
+            message: format!(
+                "Using `@{connect_directive_name}` on `type {object_name}` requires connectors v0.2. Learn more at https://go.apollo.dev/connectors/changelog.",
+                object_name = object.name,
+                connect_directive_name = schema.connect_directive_name,
+            ),
+            locations: object
+                .line_column_range(&schema.sources)
+                .into_iter()
+                .collect(),
+        }];
     }
 
     // Mark resolvable key fields as seen

@@ -38,6 +38,12 @@ use crate::sources::connect::spec::schema::HTTP_HEADER_MAPPING_NAME_ARGUMENT_NAM
 use crate::sources::connect::spec::schema::HTTP_HEADER_MAPPING_VALUE_ARGUMENT_NAME;
 use crate::sources::connect::spec::schema::SOURCE_BASE_URL_ARGUMENT_NAME;
 
+const CONNECT_V0_1_LOCATIONS: &[DirectiveLocation] = &[DirectiveLocation::FieldDefinition];
+const CONNECT_V0_2_LOCATIONS: &[DirectiveLocation] = &[
+    DirectiveLocation::FieldDefinition,
+    DirectiveLocation::Object,
+];
+
 pub(super) fn check_or_add(
     link: &Link,
     schema: &mut FederationSchema,
@@ -183,12 +189,28 @@ pub(super) fn check_or_add(
 
     // -------------------------------------------------------------------------
 
+    // connect/v0.1:
     // directive @connect(
     //   source: String
     //   http: ConnectHTTP
     //   selection: JSONSelection!
     //   entity: Boolean = false
     // ) repeatable on FIELD_DEFINITION
+    //
+    // connect/v0.2:
+    // directive @connect(
+    //   source: String
+    //   http: ConnectHTTP
+    //   selection: JSONSelection!
+    //   entity: Boolean = false
+    // ) repeatable on FIELD_DEFINITION | OBJECT
+
+    let locations = if link.url.version.major == 0 && link.url.version.minor == 1 {
+        CONNECT_V0_1_LOCATIONS
+    } else {
+        CONNECT_V0_2_LOCATIONS
+    };
+
     let connect_spec = DirectiveSpecification::new(
         link.directive_name_in_schema(&CONNECT_DIRECTIVE_NAME_IN_SPEC),
         &[
@@ -242,7 +264,7 @@ pub(super) fn check_or_add(
             },
         ],
         true,
-        &[DirectiveLocation::FieldDefinition],
+        locations,
         false,
         None,
     );
@@ -424,5 +446,77 @@ mod tests {
           headers: [connect__HTTPHeaderMapping!]
         }
         "###);
+    }
+
+    #[test]
+    fn test_v0_2() {
+        let schema = Schema::parse(r#"
+        type Query { hello: String }
+        extend schema
+          @link(url: "https://specs.apollo.dev/link/v1.0")
+          @link(url: "https://specs.apollo.dev/connect/v0.2", import: ["@source"])
+        directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
+        enum link__Purpose { SECURITY EXECUTION }
+        scalar link__Import
+        "#, "schema.graphql").unwrap();
+
+        let mut federation_schema = FederationSchema::new(schema).unwrap();
+        let link = federation_schema
+            .metadata()
+            .unwrap()
+            .for_identity(&ConnectSpec::identity())
+            .unwrap();
+
+        check_or_add(&link, &mut federation_schema).unwrap();
+
+        assert_snapshot!(federation_schema.schema().serialize().to_string(), @r#"
+        schema {
+          query: Query
+        }
+
+        extend schema @link(url: "https://specs.apollo.dev/link/v1.0") @link(url: "https://specs.apollo.dev/connect/v0.2", import: ["@source"])
+
+        directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
+
+        directive @connect(source: String, http: connect__ConnectHTTP, selection: connect__JSONSelection!, entity: Boolean = false) repeatable on FIELD_DEFINITION | OBJECT
+
+        directive @source(name: String!, http: connect__SourceHTTP) repeatable on SCHEMA
+
+        type Query {
+          hello: String
+        }
+
+        enum link__Purpose {
+          SECURITY
+          EXECUTION
+        }
+
+        scalar link__Import
+
+        scalar connect__JSONSelection
+
+        scalar connect__URLTemplate
+
+        input connect__HTTPHeaderMapping {
+          name: String!
+          from: String
+          value: [String!]
+        }
+
+        input connect__ConnectHTTP {
+          GET: connect__URLTemplate
+          POST: connect__URLTemplate
+          PUT: connect__URLTemplate
+          PATCH: connect__URLTemplate
+          DELETE: connect__URLTemplate
+          body: connect__JSONSelection
+          headers: [connect__HTTPHeaderMapping!]
+        }
+
+        input connect__SourceHTTP {
+          baseURL: String!
+          headers: [connect__HTTPHeaderMapping!]
+        }
+        "#);
     }
 }
