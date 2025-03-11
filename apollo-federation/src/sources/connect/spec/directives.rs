@@ -482,14 +482,16 @@ mod tests {
 
         insta::assert_debug_snapshot!(
             connects.unwrap(),
-            @r###"
+            @r#"
         [
             ConnectDirectiveArguments {
-                position: ObjectOrInterfaceFieldDirectivePosition {
-                    field: Object(Query.users),
-                    directive_name: "connect",
-                    directive_index: 0,
-                },
+                position: Field(
+                    ObjectOrInterfaceFieldDirectivePosition {
+                        field: Object(Query.users),
+                        directive_name: "connect",
+                        directive_index: 0,
+                    },
+                ),
                 source: Some(
                     "json",
                 ),
@@ -542,11 +544,13 @@ mod tests {
                 entity: false,
             },
             ConnectDirectiveArguments {
-                position: ObjectOrInterfaceFieldDirectivePosition {
-                    field: Object(Query.posts),
-                    directive_name: "connect",
-                    directive_index: 0,
-                },
+                position: Field(
+                    ObjectOrInterfaceFieldDirectivePosition {
+                        field: Object(Query.posts),
+                        directive_name: "connect",
+                        directive_index: 0,
+                    },
+                ),
                 source: Some(
                     "json",
                 ),
@@ -611,7 +615,7 @@ mod tests {
                 entity: false,
             },
         ]
-        "###
+        "#
         );
     }
 }
