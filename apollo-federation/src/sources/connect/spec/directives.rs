@@ -21,6 +21,7 @@ use crate::error::FederationError;
 use crate::schema::position::InterfaceFieldDefinitionPosition;
 use crate::schema::position::ObjectOrInterfaceFieldDefinitionPosition;
 use crate::schema::position::ObjectOrInterfaceFieldDirectivePosition;
+use crate::sources::connect::ConnectorPosition;
 use crate::sources::connect::ObjectFieldDefinitionPosition;
 use crate::sources::connect::json_selection::JSONSelection;
 use crate::sources::connect::models::Header;
@@ -85,11 +86,12 @@ pub(crate) fn extract_connect_directive_arguments(
                             )
                         };
 
-                        let position = ObjectOrInterfaceFieldDirectivePosition {
-                            field: field_pos,
-                            directive_name: directive.name.clone(),
-                            directive_index: i,
-                        };
+                        let position =
+                            ConnectorPosition::Field(ObjectOrInterfaceFieldDirectivePosition {
+                                field: field_pos,
+                                directive_name: directive.name.clone(),
+                                directive_index: i,
+                            });
                         ConnectDirectiveArguments::from_position_and_directive(position, directive)
                     })
             })
@@ -184,7 +186,7 @@ impl TryFrom<&ObjectNode> for SourceHTTPArguments {
 
 impl ConnectDirectiveArguments {
     fn from_position_and_directive(
-        position: ObjectOrInterfaceFieldDirectivePosition,
+        position: ConnectorPosition,
         value: &Node<Directive>,
     ) -> Result<Self, FederationError> {
         let args = &value.arguments;

@@ -254,7 +254,7 @@ fn advanced_validations(
     for (_, connector) in connectors {
         if let Some(field_set) = connector.resolvable_key(schema).map_err(|_| {
             let variables = connector.variable_references().collect_vec();
-            field_set_error(&variables, connector.id.directive.field.type_name())
+            field_set_error(&variables, &connector.id.directive.coordinate())
         })? {
             entity_checker.add_connector(field_set);
         }
